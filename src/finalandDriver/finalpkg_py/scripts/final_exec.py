@@ -8,7 +8,7 @@ import rospy
 import numpy as np
 from final_header import *
 from final_func import *
-
+from image_proc import *
 
 ################ Pre-defined parameters and functions below (can change if needed) ################
 
@@ -244,7 +244,29 @@ def main():
     move_arm(pub_command, loop_rate, home, vel, accel, 'J')  # Move to the home position
 
     ##========= TODO: Read and draw a given image =========##
-     
+    paper_offset = np.array([16, 15, 1.5])/100
+    image_path = 'images/zigzag.jpg'
+    
+
+    start = lab_invk(paper_offset[0], paper_offset[1], paper_offset[2], 0)
+    move_arm(pub_command, loop_rate, start, 3, 3, 'J')
+
+    time.sleep(2)
+
+    proc = ImageProc(image_path)
+    points = proc.get_lines()
+    scaled = proc.scale_to_meters(points)
+
+    for contour in scaled:
+        for point in contour:
+            print("point: ", type(point))
+            pos = np.array([point[0], point[1], 0])
+            print(pos)
+            pos = paper_offset + pos
+
+            angles = lab_invk(pos[0], pos[1], pos[2], 0.)
+            move_arm(pub_command, loop_rate, angles, 1, 1, 'L')
+            time.sleep(0.1)
 
 
     move_arm(pub_command, loop_rate, home, vel, accel, 'J')  # Return to the home position
