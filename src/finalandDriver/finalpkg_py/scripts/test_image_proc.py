@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 
 import matplotlib.pyplot as plt
+import time
+import numpy as np
 
 # def plot_lines(lines, size):
 #     # Create a new figure with the size of letter paper (8.5x11 inches)
@@ -108,7 +110,13 @@ lines = test.approximate_splines(contours, 0.001)
 
 lines = compute_optimal_path(lines)
 
-print("Testing image", lines)
+for i, segment in enumerate(lines):
+    print(f'Segment {i}')
+    for j, line in enumerate(segment):
+        print(f'Line {j}: {line}')
+
+
+
 print("Number of segments:", len(lines))
 
 size = test.get_image_size()

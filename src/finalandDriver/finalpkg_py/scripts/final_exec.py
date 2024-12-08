@@ -18,7 +18,7 @@ SPIN_RATE = 20
 # UR3 home location
 home = [270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0]  
 
-height = 0.2
+height = 0.015
 
 # UR3 current position, using home position for initialization
 current_position = copy.deepcopy(home)  
@@ -37,7 +37,7 @@ current_position_set = False
 
 """
 Whenever ur3/gripper_input publishes info this callback function is called.
-"""
+""",
 def input_callback(msg):
     global digital_in_0
     digital_in_0 = msg.DIGIN
@@ -188,8 +188,8 @@ def find_path(image_path):
 
 
 
-def IMG2W(row, col, image):
-    """Transform image coordinates to world coordinates
+def IMG2W(row, col, image_shape, margin_inch=1):
+    """Transform image coordinates to world coordinates with margins
 
     Parameters
     ----------
@@ -197,8 +197,10 @@ def IMG2W(row, col, image):
         Pixel row position
     col : int
         Pixel column position
-    image : np.ndarray
-        The given image (before or after preprocessing)
+    image_shape : tuple
+        Shape of the image (height, width)
+    margin_inch : float, optional
+        Margin size in inches (default is 1 inch)
 
     Returns
     -------
@@ -207,8 +209,40 @@ def IMG2W(row, col, image):
     y : float
         y position in the world frame
     """
-    x, y = 0.0, 0.0
-    return (x, y)
+    # Convert letter size from inches to meters
+    inch_to_meter = 0.0254
+    margin_m = margin_inch * inch_to_meter
+    letter_width_m = 0.2159
+    letter_height_m = 0.2794
+
+    # Calculate printable area dimensions
+    printable_width_m = letter_width_m - 2 * margin_m
+    printable_height_m = letter_height_m - 2 * margin_m
+    
+    image_height, image_width = image_shape
+    
+    # Calculate aspect ratio of the image
+    aspect_ratio_image = image_width / image_height
+    
+    # Calculate the dimensions of the scaled image to fit within the printable area
+    if (printable_width_m / printable_height_m) > aspect_ratio_image:
+        # Fit to printable height
+        scaled_height_m = printable_height_m
+        scaled_width_m = scaled_height_m * aspect_ratio_image
+    else:
+        # Fit to printable width
+        scaled_width_m = printable_width_m
+        scaled_height_m = scaled_width_m / aspect_ratio_image
+    
+    # Calculate conversion factors
+    x_pixel_to_meter = scaled_height_m / image_height
+    y_pixel_to_meter = scaled_width_m / image_width
+    
+    # Invert the row coordinate to avoid flipping the image along the y-axis
+    world_x = (image_height - row) * x_pixel_to_meter
+    world_y = col * y_pixel_to_meter
+    
+    return (world_x, world_y)
 
 def compute_optimal_path(lines):
     """Compute the optimal path with the fewest discontinuities
@@ -265,7 +299,7 @@ def compute_optimal_path(lines):
     return optimal_path
 
 
-def draw_image(path, pub_command, loop_rate):
+def draw_image(path, pub_command, loop_rate, image_shape):
     """Draw the image based on detecte keypoints in world coordinates
 
     Parameters
@@ -276,37 +310,36 @@ def draw_image(path, pub_command, loop_rate):
 
     optimal_pixel_path = compute_optimal_path(path)
 
+    paper_offset = np.array([16,15,0.03]) / 100
+
+
     for i, segment in enumerate(optimal_pixel_path):
         for line in segment:
-            start, end = line
-            print("Drawing line from", start, "to", end)
-            joint_position = lab_invk(end[0], end[1], height, 0.0)
+            print("Drawing line from", line[0], "to", line[1])
+            start = IMG2W(line[0][0], line[0][1], image_shape)
+            end = IMG2W(line[1][0], line[1][1], image_shape)
+            joint_position = lab_invk(end[0] + paper_offset[0], end[1] + paper_offset[1], height, 0.0)
             move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
         
-        current_pos = segment[-1][-1]
-        joint_position = lab_invk(current_pos[0], current_pos[1] + 0.2, height, 0.0)
+        current_pos = IMG2W(segment[-1][-1][0], segment[-1][-1][1], image_shape)
+        joint_position = lab_invk(current_pos[0] + paper_offset[0], current_pos[1] + paper_offset[1], height + 0.02, 0.0)
         move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
 
         if i == len(optimal_pixel_path) - 1:
             break
 
-        next_pos = optimal_pixel_path[i+1][0][0]
-        joint_position = lab_invk(next_pos[0], next_pos[1] + 0.2, height, 0.0)
+        next_pos = IMG2W(optimal_pixel_path[i+1][0][0][0], optimal_pixel_path[i+1][0][0][1], image_shape)
+        joint_position = lab_invk(next_pos[0] + paper_offset[0], next_pos[1] + paper_offset[1], height + 0.02, 0.0)
         move_arm(pub_command, loop_rate, joint_position, 1, 1, 'J')
 
-        joint_position = lab_invk(next_pos[0], next_pos[1], height, 0.0)
+        joint_position = lab_invk(next_pos[0] + paper_offset[0], next_pos[1] + paper_offset[1], height, 0.0)
         move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
         time.sleep(0.3)
 
-
-"""
-Program run from here
-"""
 def main():
     global home
     # global variable1
     # global variable2
-
     # Initialize ROS node
     rospy.init_node('lab5node')
 
@@ -332,28 +365,21 @@ def main():
 
     ##========= TODO: Read and draw a given image =========##
     paper_offset = np.array([16, 15, 1.5])/100
-    image_path = 'images/zigzag.jpg'
+    image_path = 'images/turkey.png'
     
+    proc = ImageProc(image_path)
+
+    contours = proc.get_contours()
+
+    lines = proc.approximate_splines(contours, 0.001)
 
     start = lab_invk(paper_offset[0], paper_offset[1], paper_offset[2], 0)
     move_arm(pub_command, loop_rate, start, 3, 3, 'J')
 
+    print("About to start drawing")
     time.sleep(2)
 
-    proc = ImageProc(image_path)
-    points = proc.get_lines()
-    scaled = proc.scale_to_meters(points)
-
-    for contour in scaled:
-        for point in contour:
-            print("point: ", type(point))
-            pos = np.array([point[0], point[1], 0])
-            print(pos)
-            pos = paper_offset + pos
-
-            angles = lab_invk(pos[0], pos[1], pos[2], 0.)
-            move_arm(pub_command, loop_rate, angles, 1, 1, 'L')
-            time.sleep(0.1)
+    draw_image(lines, pub_command, loop_rate, proc.get_shape())
 
 
     move_arm(pub_command, loop_rate, home, vel, accel, 'J')  # Return to the home position

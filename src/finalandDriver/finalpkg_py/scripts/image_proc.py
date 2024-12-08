@@ -92,6 +92,8 @@ class ImageProc:
 
     #     return contours_list
     
+    def get_shape(self):
+        return self.image.shape[:2]
 
     def scale_to_meters(self, contours_list):
         # image = cv2.imread(self.image_path)
