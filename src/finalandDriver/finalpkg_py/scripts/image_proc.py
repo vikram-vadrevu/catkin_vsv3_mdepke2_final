@@ -236,3 +236,134 @@ class ImageProc:
     def get_image_size(self):
         # image = cv2.imread(self.image_path)
         return self.image.shape[:2]
+    
+
+    def get_contours_exp(self, epsilon_factor=0.01, distance_threshold=10):
+        """Get contours from the image with reduced unnecessary line segments and merged nearby contours.
+
+        Parameters
+        ----------
+        image : np.ndarray
+    import cv2
+    import numpy as np
+        The input image.
+        epsilon_factor : float, optional
+            Approximation accuracy. Default is 0.01.
+        distance_threshold : int, optional
+            Distance threshold to consider two contours close. Default is 10.
+
+        Returns
+        -------
+        merged_contours : list of np.ndarray
+            The contours detedistance_thresholdcted in the image, with close contours merged.
+        """
+
+        image = self.image
+
+        # Convert the image to grayscale
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+
+        # Apply Canny edge detection
+        edges = cv2.Canny(gray_image, 255/3, 255)
+
+        # Find contours
+        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Approximate contours to reduce unnecessary line segments
+        approx_contours = [cv2.approxPolyDP(contour, epsilon_factor * cv2.arcLength(contour, True), True) for contour in contours]
+        
+        # Merge close contours
+        merged_contours = []
+        used_contours = set()
+        for i, contour1 in enumerate(approx_contours):
+            if i in used_contours:
+                continue
+            x1, y1, w1, h1 = cv2.boundingRect(contour1)
+            center1 = np.array([x1 + w1/2, y1 + h1/2])
+            merged = False
+            for j, contour2 in enumerate(approx_contours):
+                if i == j or j in used_contours:
+                    continue
+                x2, y2, w2, h2 = cv2.boundingRect(contour2)
+                center2 = np.array([x2 + w2/2, y2 + h2/2])
+                distance = np.linalg.norm(center1 - center2)
+                if distance < distance_threshold:
+                    merged_contour = np.vstack((contour1, contour2))
+                    merged_contours.append(cv2.convexHull(merged_contour))
+                    used_contours.update([i, j])
+                    merged = True
+                    break
+            if not merged:
+                merged_contours.append(contour1)
+        
+        # Draw the merged contours on the original image
+        cv2.drawContours(image, merged_contours, -1, (0, 255, 0), 2)
+
+        return merged_contours
+    
+
+    def get_contours_filter(self, epsilon_factor=0.01, distance_threshold=10, min_length=50):
+        """Get contours from the image with reduced unnecessary line segments, merged nearby contours, and filter out short contours.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The input image.
+        epsilon_factor : float, optional
+            Approximation accuracy. Default is 0.01.
+        distance_threshold : int, optional
+            Distance threshold to consider two contours close. Default is 10.
+        min_length : int, optional
+            Minimum length of the contours to keep. Default is 50.
+
+        Returns
+        -------
+        filtered_contours : list of np.ndarray
+            The contours detected in the image, with close contours merged and short contours filtered out.
+        """
+        image = self.image
+        # Convert the image to grayscale
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+
+        # Apply Canny edge detection
+        edges = cv2.Canny(gray_image, 255/3, 255)
+
+        # Find contours
+        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Approximate contours to reduce unnecessary line segments
+        approx_contours = [cv2.approxPolyDP(contour, epsilon_factor * cv2.arcLength(contour, True), True) for contour in contours]
+        
+        # Merge close contours
+        merged_contours = []
+        used_contours = set()
+        for i, contour1 in enumerate(approx_contours):
+            if i in used_contours:
+                continue
+            x1, y1, w1, h1 = cv2.boundingRect(contour1)
+            center1 = np.array([x1 + w1/2, y1 + h1/2])
+            merged = False
+            for j, contour2 in enumerate(approx_contours):
+                if i == j or j in used_contours:
+                    continue
+                x2, y2, w2, h2 = cv2.boundingRect(contour2)
+                center2 = np.array([x2 + w2/2, y2 + h2/2])
+                distance = np.linalg.norm(center1 - center2)
+                if distance < distance_threshold:
+                    merged_contour = np.vstack((contour1, contour2))
+                    merged_contours.append(cv2.convexHull(merged_contour))
+                    used_contours.update([i, j])
+                    merged = True
+                    break
+            if not merged:
+                merged_contours.append(contour1)
+        
+        # Filter out short contours
+        filtered_contours = [contour for contour in merged_contours if cv2.arcLength(contour, True) >= min_length]
+        
+        # Draw the filtered contours on the original image
+        cv2.drawContours(image, filtered_contours, -1, (0, 255, 0), 2)
+
+        return filtered_contours
