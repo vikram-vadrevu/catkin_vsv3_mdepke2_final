@@ -68,31 +68,30 @@ def compute_optimal_path(lines):
     optimal_path = [[lines[0]]]
     lines = lines[1:]
 
-    while lines:
+    # Convert lines to numpy array for faster computation
+    lines_array = np.array(lines)
+    while len(lines_array) > 0:
         last_segment = optimal_path[-1][-1]
-        last_point = last_segment[1]
-        min_distance = float('inf')
-        next_segment = None
-        next_index = -1
+        last_point = np.array(last_segment[1])
 
-        # Find the closest segment to the last point in the current path
-        for i, segment in enumerate(lines):
-            start_point = segment[0]
-            distance = np.linalg.norm(np.array(last_point) - np.array(start_point))
-            if distance < min_distance:
-                min_distance = distance
-                next_segment = segment
-                next_index = i
+        # Calculate distances from the last point to the start of each segment
+        start_points = lines_array[:, 0]
+        distances = np.linalg.norm(start_points - last_point, axis=1)
+
+        # Find the closest segment
+        min_index = np.argmin(distances)
+        min_distance = distances[min_index]
+        next_segment = lines_array[min_index]
 
         # If the closest segment is continuous, add it to the current path
         if min_distance < 0.001:
-            optimal_path[-1].append(next_segment)
+            optimal_path[-1].append(tuple(map(tuple, next_segment)))
         else:
             # Otherwise, start a new path
-            optimal_path.append([next_segment])
+            optimal_path.append([tuple(map(tuple, next_segment))])
 
         # Remove the selected segment from the list
-        lines.pop(next_index)
+        lines_array = np.delete(lines_array, min_index, axis=0)
 
     print(f'Optimal path computed in {time.time() - start_time:.2f} seconds')
 
@@ -102,6 +101,8 @@ def compute_optimal_path(lines):
 import sys
 #from finalandDriver.finalpkg_py.scripts.image_proc import ImageProc
 from image_proc import *
+import numpy as np
+import time
 print(sys.argv)
 test = ImageProc(sys.argv[1])
 contours = test.get_contours()
