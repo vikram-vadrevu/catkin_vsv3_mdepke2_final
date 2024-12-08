@@ -18,6 +18,8 @@ SPIN_RATE = 20
 # UR3 home location
 home = [270*PI/180.0, -90*PI/180.0, 90*PI/180.0, -90*PI/180.0, -90*PI/180.0, 135*PI/180.0]  
 
+height = 0.2
+
 # UR3 current position, using home position for initialization
 current_position = copy.deepcopy(home)  
 
@@ -163,12 +165,12 @@ def move_arm(pub_cmd, loop_rate, dest, vel, accel, move_type):
 
 ##========= TODO: Helper Functions =========##
 
-def find_keypoints(image):
+def find_path(image_path):
     """Gets keypoints from the given image
 
     Parameters
     ----------
-    image : np.ndarray
+    image_path : String
         The given image (before or after preprocessing)
 
     Returns
@@ -176,8 +178,15 @@ def find_keypoints(image):
     keypoints
         a list of keypoints detected in image coordinates
     """
-    keypoints = []
-    return keypoints
+    feature_extractor = ImaceProc(image_path)
+
+    contours = feature_extractor.get_contours()
+
+    line_segments = feature_extractor.approximate_splines(contours, 0.001)
+
+    return line_segments
+
+
 
 def IMG2W(row, col, image):
     """Transform image coordinates to world coordinates
@@ -199,17 +208,95 @@ def IMG2W(row, col, image):
         y position in the world frame
     """
     x, y = 0.0, 0.0
-    return x, y
+    return (x, y)
 
-def draw_image(world_keypoints):
+def compute_optimal_path(lines):
+    """Compute the optimal path with the fewest discontinuities
+
+    Parameters
+    ----------
+    lines : list
+        List of line segments, where each segment is represented as a tuple of start and end points
+
+    Returns
+    -------
+    optimal_path : list
+        List of lists where each element represents a continuous set of line segments
+    """
+    if not lines:
+        return []
+
+    print(f'Computing optimal path for {len(lines)} line segments. This might take a while...')
+
+    start_time = time.time()
+
+    # Initialize the optimal path with the first line segment
+    optimal_path = [[lines[0]]]
+    lines = lines[1:]
+
+    while lines:
+        last_segment = optimal_path[-1][-1]
+        last_point = last_segment[1]
+        min_distance = float('inf')
+        next_segment = None
+        next_index = -1
+
+        # Find the closest segment to the last point in the current path
+        for i, segment in enumerate(lines):
+            start_point = segment[0]
+            distance = np.linalg.norm(np.array(last_point) - np.array(start_point))
+            if distance < min_distance:
+                min_distance = distance
+                next_segment = segment
+                next_index = i
+
+        # If the closest segment is continuous, add it to the current path
+        if min_distance < 0.001:
+            optimal_path[-1].append(next_segment)
+        else:
+            # Otherwise, start a new path
+            optimal_path.append([next_segment])
+
+        # Remove the selected segment from the list
+        lines.pop(next_index)
+
+    print(f'Optimal path computed in {time.time() - start_time:.2f} seconds')
+
+    return optimal_path
+
+
+def draw_image(path, pub_command, loop_rate):
     """Draw the image based on detecte keypoints in world coordinates
 
     Parameters
     ----------
-    world_keypoints:
+    path:
         a list of keypoints detected in world coordinates
     """
-    pass
+
+    optimal_pixel_path = compute_optimal_path(path)
+
+    for i, segment in enumerate(optimal_pixel_path):
+        for line in segment:
+            start, end = line
+            print("Drawing line from", start, "to", end)
+            joint_position = lab_invk(end[0], end[1], height, 0.0)
+            move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
+        
+        current_pos = segment[-1][-1]
+        joint_position = lab_invk(current_pos[0], current_pos[1] + 0.2, height, 0.0)
+        move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
+
+        if i == len(optimal_pixel_path) - 1:
+            break
+
+        next_pos = optimal_pixel_path[i+1][0][0]
+        joint_position = lab_invk(next_pos[0], next_pos[1] + 0.2, height, 0.0)
+        move_arm(pub_command, loop_rate, joint_position, 1, 1, 'J')
+
+        joint_position = lab_invk(next_pos[0], next_pos[1], height, 0.0)
+        move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
+        time.sleep(0.3)
 
 
 """

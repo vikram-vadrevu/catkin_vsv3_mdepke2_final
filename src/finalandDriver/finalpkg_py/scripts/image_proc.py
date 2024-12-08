@@ -6,7 +6,12 @@ import time
 
 class ImageProc:
     def __init__(self, image_path):
-        self.image_path = image_path
+        # self.image_path = image_path
+
+        self.image = cv2.imread(image_path)
+        # Ensure the image is in portrait mode
+        if self.image.shape[1] > self.image.shape[0]:
+            self.image = cv2.rotate(self.image, cv2.ROTATE_90_CLOCKWISE)
 
     # def get_lines(self):
     #     # # Load your image
@@ -89,7 +94,8 @@ class ImageProc:
     
 
     def scale_to_meters(self, contours_list):
-        image = cv2.imread(self.image_path)
+        # image = cv2.imread(self.image_path)
+        image = self.image
         image_size = image.shape[:2]
         # Define the dimensions of the paper in meters
         paper_width = 0.2159  # 8.5 inches in meters
@@ -112,7 +118,8 @@ class ImageProc:
         contours_list = self.get_lines()
 
         # Load the image to get its size
-        image = cv2.imread(self.image_path)
+        # image = cv2.imread(self.image_path)
+        image = self.image
         image_size = image.shape[:2]  # (height, width)
 
         # Convert the contours to meters
@@ -125,7 +132,8 @@ class ImageProc:
         return contours_in_meters
 
     def get_contours(self):
-        image = cv2.imread(self.image_path)
+        # image = cv2.imread(self.image_path)
+        image = self.image
         # Convert the image to grayscale
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -159,10 +167,10 @@ class ImageProc:
 
         # Display the image with contours
 
-        cv2.imshow('Contours', image)
+        # cv2.imshow('Contours', image)
 
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         return contours
 
@@ -223,3 +231,6 @@ class ImageProc:
         # # END ADDED 12/4
         pass
 
+    def get_image_size(self):
+        # image = cv2.imread(self.image_path)
+        return self.image.shape[:2]
