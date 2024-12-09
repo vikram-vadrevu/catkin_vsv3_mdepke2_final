@@ -299,7 +299,8 @@ def compute_optimal_path(lines):
 
 
 def draw_image(path, pub_command, loop_rate, image_shape):
-    """Draw the image based on detecte keypoints in world coordinates
+    """Draw the image based on
+ detecte keypoints in world coordinates
 
     Parameters
     ----------
@@ -318,7 +319,7 @@ def draw_image(path, pub_command, loop_rate, image_shape):
             start = IMG2W(line[0][0], line[0][1], image_shape)
             end = IMG2W(line[1][0], line[1][1], image_shape)
             joint_position = lab_invk(end[0] + paper_offset[0], end[1] + paper_offset[1], height, 0.0)
-            move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
+            move_arm(pub_command, loop_rate, joint_position, 3, 3, 'L')
         
         current_pos = IMG2W(segment[-1][-1][0], segment[-1][-1][1], image_shape)
         joint_position = lab_invk(current_pos[0] + paper_offset[0], current_pos[1] + paper_offset[1], height + 0.02, 0.0)
@@ -368,7 +369,10 @@ def main():
     
     proc = ImageProc(image_path)
 
-    contours = proc.get_contours_exp(epsilon_factor=0.001, distance_threshold=11)
+    # Works, drew terkey in 23 minutes
+    # contours = proc.get_contours_filter(epsilon_factor=0.001, distance_threshold=11, min_length=200)
+
+    contours = proc.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=250)
 
     lines = proc.approximate_splines(contours, 0.001)
 

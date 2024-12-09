@@ -105,7 +105,7 @@ import numpy as np
 import time
 print(sys.argv)
 test = ImageProc(sys.argv[1])
-contours = test.get_contours_filter(epsilon_factor=0.001, distance_threshold=11, min_length=150)
+contours = test.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=250)
 
 lines = test.approximate_splines(contours, 0.001)
 
@@ -125,55 +125,5 @@ size = test.get_image_size()
 plot_lines(lines, size)
 
 
-# import cv2
-# import numpy as np
-# import matplotlib.pyplot as plt
 
-# def detect_edges(image):
-#     # Convert to grayscale
-#     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#     # Apply Canny edge detection
-#     edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-#     return edges
 
-# def find_contours(edges):
-#     # Find contours in the edge-detected image
-#     contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-#     return contours
-
-# def approximate_splines(contours, resolution=0.01):
-#     lines = []
-#     for contour in contours:
-#         # Approximate the contour with a spline
-#         epsilon = resolution * cv2.arcLength(contour, True)
-#         approx = cv2.approxPolyDP(contour, epsilon, True)
-#         for i in range(len(approx) - 1):
-#             start = tuple(approx[i][0])
-#             end = tuple(approx[i + 1][0])
-#             lines.append((start, end))
-#     return lines
-
-# def plot_lines(lines):
-#     fig, ax = plt.subplots(figsize=(8.5, 11))
-#     for line in lines:
-#         x_values, y_values = zip(*line)
-#         ax.plot(x_values, y_values, 'b-')
-#     ax.set_xlim(0, 8.5 * 100)  # Assuming 100 pixels per inch
-#     ax.set_ylim(0, 11 * 100)  # Assuming 100 pixels per inch
-#     ax.set_xlabel('X-axis')
-#     ax.set_ylabel('Y-axis')
-#     plt.gca().invert_yaxis()
-#     plt.show()
-
-# def main():
-#     image_path = 'images/zigzag.jpg'  # Replace with your image path
-#     image = cv2.imread(image_path)
-
-#     edges = detect_edges(image)
-#     contours = find_contours(edges)
-#     lines = approximate_splines(contours)
-
-#     plot_lines(lines)
-
-# if __name__ == "__main__":
-#     main()
