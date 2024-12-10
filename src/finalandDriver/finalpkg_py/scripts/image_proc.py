@@ -406,7 +406,7 @@ class ImageProc:
         image = self.image
         # Convert the image to grayscale
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        gray_image = cv2.GaussianBlur(gray_image, (9, 9), 0)
 
         # Apply Canny edge detection
         edges = cv2.Canny(gray_image, 50, 100)

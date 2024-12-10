@@ -518,19 +518,19 @@ def draw_image(path, pub_command, loop_rate, image_shape):
     for i, segment in enumerate(optimal_pixel_path):
         for line in segment:
             print("Drawing line from", line[0], "to", line[1])
-            start = IMG2W(line[0][0], line[0][1], image_shape)
-            end = IMG2W(line[1][0], line[1][1], image_shape)
+            start = IMG2W(line[0][0], line[0][1], image_shape, margin_inch=2)
+            end = IMG2W(line[1][0], line[1][1], image_shape, margin_inch=2)
             joint_position = lab_invk(end[0] + paper_offset[0], end[1] + paper_offset[1], height, 0.0)
             move_arm(pub_command, loop_rate, joint_position, 3, 3, 'L')
         
-        current_pos = IMG2W(segment[-1][-1][0], segment[-1][-1][1], image_shape)
+        current_pos = IMG2W(segment[-1][-1][0], segment[-1][-1][1], image_shape, margin_inch=2)
         joint_position = lab_invk(current_pos[0] + paper_offset[0], current_pos[1] + paper_offset[1], height + 0.02, 0.0)
         move_arm(pub_command, loop_rate, joint_position, 1, 1, 'L')
 
         if i == len(optimal_pixel_path) - 1:
             break
 
-        next_pos = IMG2W(optimal_pixel_path[i+1][0][0][0], optimal_pixel_path[i+1][0][0][1], image_shape)
+        next_pos = IMG2W(optimal_pixel_path[i+1][0][0][0], optimal_pixel_path[i+1][0][0][1], image_shape, margin_inch=2)
         joint_position = lab_invk(next_pos[0] + paper_offset[0], next_pos[1] + paper_offset[1], height + 0.02, 0.0)
         move_arm(pub_command, loop_rate, joint_position, 1, 1, 'J')
 
@@ -567,14 +567,14 @@ def main():
 
     ##========= TODO: Read and draw a given image =========##
     paper_offset = np.array([16, 15, 1.5])/100
-    image_path = 'images/rob.png'
+    image_path = 'images/car2.jpg'
     
     proc = ImageProc(image_path)
 
     # Works, drew terkey in 23 minutes
     # contours = proc.get_contours_filter(epsilon_factor=0.001, distance_threshold=11, min_length=200)
 
-    contours = proc.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=100)
+    contours = proc.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=50)
 
     lines = proc.approximate_splines(contours, 0.001)
 
