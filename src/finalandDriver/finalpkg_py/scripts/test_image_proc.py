@@ -312,7 +312,7 @@ import time
 print(sys.argv)
 test = ImageProc(sys.argv[1])
 
-contours = test.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=50)
+contours = test.get_contours_filter_exp(epsilon_factor=0.001, distance_threshold=10, min_length=150)
 
 lines = test.approximate_splines(contours, 0.001)
 
